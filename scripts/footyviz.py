@@ -1,11 +1,14 @@
 from matplotlib import pyplot as plt
 from matplotlib.patches import Ellipse
+from matplotlib.pyplot import arrow
 from matplotlib.collections import PatchCollection
 import matplotlib.patheffects as path_effects
 import numpy as np
-
+import math 
 from scipy.spatial import Voronoi
 from shapely.geometry import Polygon
+import matplotlib.animation as animation
+import PitchControl_lastrow as pc
 
 X_SIZE = 105
 Y_SIZE = 68
@@ -83,7 +86,7 @@ def draw_patches(axes):
 
     return axes
 
-def draw_frame(df, t, dpi=100, fps=20, display_num=False, display_time=False, show_players=True,
+def draw_frame(df, t, dpi=100, fps=20, add_vector=False,display_num=False, display_time=False, show_players=True,
                highlight_color=None, highlight_player=None, shadow_player=None, text_color='white', flip=False, **anim_args):
     """
     Draws players from time t (in seconds) from a DataFrame df
@@ -128,6 +131,20 @@ def draw_frame(df, t, dpi=100, fps=20, display_num=False, display_time=False, sh
                                 facecolor=color,
                                 alpha=0.8,
                                 zorder=zorder))
+            
+            if add_vector:
+                
+                arrow_length = math.sqrt((dfFrame.loc[pid]['dx']**2 + dfFrame.loc[pid]['dy']**2))*20
+                color_arrow = 'white' if pid == 0 else color
+                plt.arrow(x=dfFrame.loc[pid]['x'],
+                         y=dfFrame.loc[pid]['y'],
+                         dx=dfFrame.loc[pid]['dx']*20,
+                         dy=dfFrame.loc[pid]['dy']*20,
+                         length_includes_head=True,
+                         color = color_arrow,
+                         edgecolor=edge,
+                         head_width=1,
+                         head_length=arrow_length/4.)
 
             try:
                 s = str(int(dfFrame.loc[pid]['player_num']))
@@ -184,3 +201,170 @@ def get_frame(df, t, fps=20):
     dfFrame = df.loc[int(t*fps)].set_index('player')
     dfFrame.player_num = dfFrame.player_num.fillna('')
     return dfFrame
+
+### VISUALISATION FOR PITCH CONTROL
+    
+def plot_pitch( field_dimen = (106.0,68.0), field_color ='green', linewidth=2, markersize=20):
+    """ plot_pitch
+    
+    Plots a soccer pitch. All distance units converted to meters.
+    
+    Parameters
+    -----------
+        field_dimen: (length, width) of field in meters. Default is (106,68)
+        field_color: color of field. options are {'green','white'}
+        linewidth  : width of lines. default = 2
+        markersize : size of markers (e.g. penalty spot, centre spot, posts). default = 20
+        
+    Returrns
+    -----------
+       fig,ax : figure and aixs objects (so that other data can be plotted onto the pitch)
+
+    """
+    fig,ax = plt.subplots(figsize=(12,8)) # create a figure 
+    # decide what color we want the field to be. Default is green, but can also choose white
+    if field_color=='green':
+        ax.set_facecolor('mediumseagreen')
+        lc = 'whitesmoke' # line color
+        pc = 'w' # 'spot' colors
+    elif field_color=='white':
+        lc = 'k'
+        pc = 'k'
+    # ALL DIMENSIONS IN m
+    border_dimen = (3,3) # include a border arround of the field of width 3m
+    meters_per_yard = 0.9144 # unit conversion from yards to meters
+    half_pitch_length = field_dimen[0]/2. # length of half pitch
+    half_pitch_width = field_dimen[1]/2. # width of half pitch
+    signs = [-1,1] 
+    # Soccer field dimensions typically defined in yards, so we need to convert to meters
+    goal_line_width = 8*meters_per_yard
+    box_width = 20*meters_per_yard
+    box_length = 6*meters_per_yard
+    area_width = 44*meters_per_yard
+    area_length = 18*meters_per_yard
+    penalty_spot = 12*meters_per_yard
+    corner_radius = 1*meters_per_yard
+    D_length = 8*meters_per_yard
+    D_radius = 10*meters_per_yard
+    D_pos = 12*meters_per_yard
+    centre_circle_radius = 10*meters_per_yard
+    # plot half way line # center circle
+    ax.plot([0,0],[-half_pitch_width,half_pitch_width],lc,linewidth=linewidth)
+    ax.scatter(0.0,0.0,marker='o',facecolor=lc,linewidth=0,s=markersize)
+    y = np.linspace(-1,1,50)*centre_circle_radius
+    x = np.sqrt(centre_circle_radius**2-y**2)
+    ax.plot(x,y,lc,linewidth=linewidth)
+    ax.plot(-x,y,lc,linewidth=linewidth)
+    for s in signs: # plots each line seperately
+        # plot pitch boundary
+        ax.plot([-half_pitch_length,half_pitch_length],[s*half_pitch_width,s*half_pitch_width],lc,linewidth=linewidth)
+        ax.plot([s*half_pitch_length,s*half_pitch_length],[-half_pitch_width,half_pitch_width],lc,linewidth=linewidth)
+        # goal posts & line
+        ax.plot( [s*half_pitch_length,s*half_pitch_length],[-goal_line_width/2.,goal_line_width/2.],pc+'s',markersize=6*markersize/20.,linewidth=linewidth)
+        # 6 yard box
+        ax.plot([s*half_pitch_length,s*half_pitch_length-s*box_length],[box_width/2.,box_width/2.],lc,linewidth=linewidth)
+        ax.plot([s*half_pitch_length,s*half_pitch_length-s*box_length],[-box_width/2.,-box_width/2.],lc,linewidth=linewidth)
+        ax.plot([s*half_pitch_length-s*box_length,s*half_pitch_length-s*box_length],[-box_width/2.,box_width/2.],lc,linewidth=linewidth)
+        # penalty area
+        ax.plot([s*half_pitch_length,s*half_pitch_length-s*area_length],[area_width/2.,area_width/2.],lc,linewidth=linewidth)
+        ax.plot([s*half_pitch_length,s*half_pitch_length-s*area_length],[-area_width/2.,-area_width/2.],lc,linewidth=linewidth)
+        ax.plot([s*half_pitch_length-s*area_length,s*half_pitch_length-s*area_length],[-area_width/2.,area_width/2.],lc,linewidth=linewidth)
+        # penalty spot
+        ax.scatter(s*half_pitch_length-s*penalty_spot,0.0,marker='o',facecolor=lc,linewidth=0,s=markersize)
+        # corner flags
+        y = np.linspace(0,1,50)*corner_radius
+        x = np.sqrt(corner_radius**2-y**2)
+        ax.plot(s*half_pitch_length-s*x,-half_pitch_width+y,lc,linewidth=linewidth)
+        ax.plot(s*half_pitch_length-s*x,half_pitch_width-y,lc,linewidth=linewidth)
+        # draw the D
+        y = np.linspace(-1,1,50)*D_length # D_length is the chord of the circle that defines the D
+        x = np.sqrt(D_radius**2-y**2)+D_pos
+        ax.plot(s*half_pitch_length-s*x,y,lc,linewidth=linewidth)
+        
+    # remove axis labels and ticks
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # set axis limits
+    xmax = field_dimen[0]/2. + border_dimen[0]
+    ymax = field_dimen[1]/2. + border_dimen[1]
+    ax.set_xlim([-xmax,xmax])
+    ax.set_ylim([-ymax,ymax])
+    ax.set_axisbelow(True)
+    return fig,ax
+
+def plot_frame(attackteam, defenseteam, figax=None, team_colors=('r','b'), field_dimen = (106.0,68.0), include_player_velocities=False, PlayerMarkerSize=10, PlayerAlpha=0.7):
+    """ plot_frame(attackteam, defenseteam)
+    
+    Plots a frame of last Row tracking data (player positions and the ball) on a football pitch. All distances should be in meters.
+    
+    Parameters
+    -----------
+        attackteam: row (i.e. instant) of the home team tracking data frame
+        defenseteam: row of the away team tracking data frame
+        fig,ax: Can be used to pass in the (fig,ax) objects of a previously generated pitch. Set to (fig,ax) to use an existing figure, or None (the default) to generate a new pitch plot, 
+        team_colors: Tuple containing the team colors of the home & away team. Default is 'r' (red, home team) and 'b' (blue away team)
+        field_dimen: tuple containing the length and width of the pitch in meters. Default is (106,68)
+        include_player_velocities: Boolean variable that determines whether player velocities are also plotted (as quivers). Default is False
+        PlayerMarkerSize: size of the individual player marlers. Default is 10
+        PlayerAlpha: alpha (transparency) of player markers. Defaault is 0.7
+        annotate: Boolean variable that determines with player jersey numbers are added to the plot (default is False)
+        
+    Returrns
+    -----------
+       fig,ax : figure and axis objects (so that other data can be plotted onto the pitch)
+
+    """
+    if figax is None: # create new pitch 
+        fig,ax = plot_pitch( field_dimen = field_dimen )
+    else: # overlay on a previously generated pitch
+        fig,ax = figax # unpack tuple
+    
+    # plot home & away teams in order
+    for team,color in zip( [attackteam,defenseteam], team_colors) :
+        x_pos = np.array(team['x_m']) # column header for player x positions
+        y_pos = np.array(team['y_m']) # column header for player y positions
+        ax.plot( x_pos, y_pos, color+'o', MarkerSize=PlayerMarkerSize, alpha=PlayerAlpha ) # plot player positions
+        if include_player_velocities:
+            vx_val = np.array(team['vx_m']) # column header for player x positions
+            vy_val = np.array(team['vy_m']) # column header for player y positions
+            ax.quiver( x_pos, y_pos, vx_val, vy_val, color=color, scale_units='inches', scale=10.,width=0.0015,headlength=5,headwidth=3,alpha=PlayerAlpha)
+    # plot ball
+    ax.plot(list(attackteam['ball_x_m'])[0], list(attackteam['ball_y_m'])[0], 'ko', MarkerSize=6, alpha=1.0, LineWidth=0)
+    return fig,ax
+
+
+def plot_pitchcontrol_for_frame(frame, tracking_attack, tracking_defense, PPCF, xgrid, ygrid, alpha = 0.7, include_player_velocities=True, field_dimen = (106.0,68)):
+    """ plot_pitchcontrol_for_frame(frame, tracking_home, tracking_away, PPCF, xgrid, ygrid)
+    
+    Plots the pitch control surface for a given frame. Player and ball positions are overlaid.
+    
+    Parameters
+    -----------
+        frame : number relative to the frame on the given play
+        tracking_home: (entire) tracking DataFrame for the Home team
+        tracking_away: (entire) tracking DataFrame for the Away team
+        PPCF: Pitch control surface (dimen (n_grid_cells_x,n_grid_cells_y) ) containing pitch control probability for the attcking team (as returned by the generate_pitch_control_for_event in Metrica_PitchControl)
+        xgrid: Positions of the pixels in the x-direction (field length) as returned by the generate_pitch_control_for_event in Metrica_PitchControl
+        ygrid: Positions of the pixels in the y-direction (field width) as returned by the generate_pitch_control_for_event in Metrica_PitchControl
+        alpha: alpha (transparency) of player markers. Default is 0.7
+        include_player_velocities: Boolean variable that determines whether player velocities are also plotted (as quivers). Default is False
+        annotate: Boolean variable that determines with player jersey numbers are added to the plot (default is False)
+        field_dimen: tuple containing the length and width of the pitch in meters. Default is (106,68)
+        
+    Returrns
+    -----------
+       fig,ax : figure and aixs objects (so that other data can be plotted onto the pitch)
+
+    """    
+    
+    # plot frame and event
+    fig,ax = plot_pitch(field_color='white', field_dimen = field_dimen)
+    plot_frame(tracking_attack[tracking_attack['frame']==frame], tracking_defense[tracking_defense['frame']==frame], figax=(fig,ax), PlayerAlpha=alpha, include_player_velocities=include_player_velocities)
+
+    # plot pitch control surface
+    cmap = 'bwr'
+    ax.imshow(np.flipud(PPCF), extent=(np.amin(xgrid), np.amax(xgrid), np.amin(ygrid), np.amax(ygrid)),interpolation='hanning',vmin=0.0,vmax=1.0,cmap=cmap,alpha=0.5)
+    
+    return fig,ax
