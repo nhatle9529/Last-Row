@@ -50,7 +50,7 @@ def initialise_players(frame_df,teamname,params):
     
     team_players: list of player objects for the team at at given instant
     
-    """    
+    """
     # get player  ids
     player_ids = list(frame_df['player'].unique())
     # create list

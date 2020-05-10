@@ -323,13 +323,13 @@ def plot_frame(attackteam, defenseteam, figax=None, team_colors=('r','b'), field
     
     # plot home & away teams in order
     for team,color in zip( [attackteam,defenseteam], team_colors) :
-        x_pos = np.array(team['x_m']) # column header for player x positions
-        y_pos = np.array(team['y_m']) # column header for player y positions
+        x_pos = np.array(team['x_m'],dtype=float) # column header for player x positions
+        y_pos = np.array(team['y_m'],dtype=float) # column header for player y positions
         ax.plot( x_pos, y_pos, color+'o', MarkerSize=PlayerMarkerSize, alpha=PlayerAlpha ) # plot player positions
         if include_player_velocities:
-            vx_val = np.array(team['vx_m']) # column header for player x positions
-            vy_val = np.array(team['vy_m']) # column header for player y positions
-            ax.quiver( x_pos, y_pos, vx_val, vy_val, color=color, scale_units='inches', scale=10.,width=0.0015,headlength=5,headwidth=3,alpha=PlayerAlpha)
+            vx_val = np.array(team['vx_m'],dtype=float) # column header for player x positions
+            vy_val = np.array(team['vy_m'],dtype=float) # column header for player y positions
+            ax.quiver(x_pos, y_pos, vx_val, vy_val, color=color, scale_units='inches', scale=10.,width=0.0025,headlength=4,headwidth=4,alpha=PlayerAlpha)
     # plot ball
     ax.plot(list(attackteam['ball_x_m'])[0], list(attackteam['ball_y_m'])[0], 'ko', MarkerSize=6, alpha=1.0, LineWidth=0)
     return fig,ax
